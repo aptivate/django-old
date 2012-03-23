@@ -1251,6 +1251,22 @@ class ModelAdmin(BaseModelAdmin):
             'admin/change_list.html'
         ], context, current_app=self.admin_site.name)
 
+    def get_deleted_objects(self, objs, opts, request, using):
+        """
+        Find all objects related to ``objs`` that should also be deleted. ``objs``
+        must be a homogenous iterable of objects (e.g. a QuerySet).
+
+        Returns a nested list of strings suitable for display in the
+        template with the ``unordered_list`` filter.
+
+        By default this just passes the request on to 
+        django.contrib.admin.util.get_deleted_objects, but this method exists
+        to allow subclasses to override the permissions required to delete
+        things.
+        """
+        return django.contrib.admin.util.get_deleted_objects(objs, opts,
+            request.user, self.admin_site, using)
+
     @csrf_protect_m
     @transaction.commit_on_success
     def delete_view(self, request, object_id, extra_context=None):
@@ -1270,8 +1286,8 @@ class ModelAdmin(BaseModelAdmin):
 
         # Populate deleted_objects, a data structure of all related objects that
         # will also be deleted.
-        (deleted_objects, perms_needed, protected) = get_deleted_objects(
-            [obj], opts, request.user, self.admin_site, using)
+        (deleted_objects, perms_needed, protected) = self.get_deleted_objects(
+            [obj], opts, request, using)
 
         if request.POST: # The user has already confirmed the deletion.
             if perms_needed:
